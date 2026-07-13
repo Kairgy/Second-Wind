@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#12141c" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<title>Second Wind — Roll Console</title>
+<style>
+  :root {
+    --bg-ink: #12141c;
+    --bg-ink-2: #0c0e14;
+    --panel: #1b1e2a;
+    --panel-border: #2b3044;
+    --accent: #e8a33d;
+    --accent-bright: #ffc65c;
+    --phosphor: #63f2b0;
+    --rust: #e2604c;
+    --text-primary: #edeff7;
+    --text-muted: #838aa3;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html { touch-action: manipulation; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background:
+      radial-gradient(ellipse at 50% -10%, #232840 0%, var(--bg-ink) 55%),
+      var(--bg-ink);
+    color: var(--text-primary);
+    font-family: var(--sans);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    overflow-x: hidden;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    flex: 1 1 320px;
+  }
+
+  /* ---------- Dice tray (corner) ---------- */
+  .dice-tray {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-wrap: wrap-reverse;
+    flex-direction: row-reverse;
+    gap: 4px;
+    max-width: 160px;
+    justify-content: flex-end;
+    z-index: 5;
+  }
+
+  .die {
+    width: 22px;
+    height: 22px;
+    background: linear-gradient(160deg, var(--accent-bright), var(--accent));
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+    box-shadow: 0 0 8px rgba(232, 163, 61, 0.45);
+    flex-shrink: 0;
+  }
+
+  .die.pop-in {
+    animation: popIn 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  @keyframes popIn {
+    0% { transform: scale(0) rotate(-30deg); opacity: 0; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  /* ---------- Console panel ---------- */
+  .console {
+    background: linear-gradient(180deg, var(--panel), #171a25);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px;
+    padding: 36px 28px 32px;
+    text-align: center;
+    box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 22px;
+  }
+
+  .status {
+    min-height: 26px;
+    font-family: var(--mono);
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+    transition: color 200ms ease;
+  }
+  .status.miss { color: var(--rust); }
+  .status.hit { color: var(--phosphor); }
+
+  .readout {
+    margin-bottom: 30px;
+  }
+
+  .readout-value {
+    font-family: var(--mono);
+    font-size: 72px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--phosphor);
+    text-shadow: 0 0 24px rgba(99, 242, 176, 0.35);
+    letter-spacing: -0.02em;
+    transition: transform 200ms ease;
+  }
+
+  .readout-value.bump {
+    animation: bump 420ms ease;
+  }
+  @keyframes bump {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+
+  .readout-label {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .roll-btn {
+    width: 148px;
+    height: 148px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.1em;
+    color: #1a1206;
+    background: radial-gradient(circle at 35% 30%, var(--accent-bright), var(--accent) 70%);
+    box-shadow:
+      0 0 0 6px rgba(232, 163, 61, 0.12),
+      0 14px 30px -8px rgba(232, 163, 61, 0.55),
+      inset 0 2px 4px rgba(255,255,255,0.4),
+      inset 0 -6px 10px rgba(0,0,0,0.25);
+    transition: transform 120ms ease, box-shadow 200ms ease, filter 200ms ease;
+  }
+
+  .roll-btn:hover:not(:disabled) { transform: translateY(-2px); }
+  .roll-btn:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+
+  .roll-btn:disabled {
+    cursor: default;
+    filter: grayscale(0.55) brightness(0.6);
+    box-shadow:
+      0 0 0 6px rgba(232, 163, 61, 0.05),
+      inset 0 2px 4px rgba(255,255,255,0.15);
+  }
+
+  .roll-btn.ready-glow {
+    animation: readyGlow 900ms ease-out;
+  }
+  @keyframes readyGlow {
+    0% { box-shadow: 0 0 0 6px rgba(232,163,61,0.12), 0 0 0 0 rgba(255,198,92,0.9), 0 14px 30px -8px rgba(232,163,61,0.55); }
+    100% { box-shadow: 0 0 0 6px rgba(232,163,61,0.12), 0 0 0 26px rgba(255,198,92,0), 0 14px 30px -8px rgba(232,163,61,0.55); }
+  }
+
+  .stats {
+    margin-top: 26px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  /* ---------- Popup toast ---------- */
+  .popup {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.85);
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 30px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-bright);
+    text-shadow: 0 0 30px rgba(255, 198, 92, 0.6);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 20;
+  }
+  .popup.show {
+    animation: popupIn 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes popupIn {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+    35% { transform: translate(-50%, -50%) scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* ---------- Dice arena (center roll) ---------- */
+  .dice-arena {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px;
+    pointer-events: none;
+    z-index: 15;
+  }
+
+  .arena-die {
+    width: 46px;
+    height: 46px;
+    background: linear-gradient(160deg, var(--accent-bright), var(--accent));
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    color: #1a1206;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4), 0 0 0 rgba(255,198,92,0);
+    opacity: 0;
+    transform: scale(0.3);
+    animation: diceFlyIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  .arena-die .face { opacity: 0; }
+  .arena-die.settled .face { opacity: 1; transition: opacity 120ms ease; }
+
+  .arena-die.rolling {
+    animation: diceFlyIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards, diceSpin 700ms linear 420ms;
+  }
+
+  @keyframes diceFlyIn {
+    0% { opacity: 0; transform: scale(0.3) rotate(-40deg); }
+    100% { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+  @keyframes diceSpin {
+    0% { transform: scale(1) rotate(0deg); }
+    100% { transform: scale(1) rotate(720deg); }
+  }
+
+  .arena-die.hit-ten {
+    box-shadow: 0 0 22px 4px rgba(99, 242, 176, 0.85), 0 6px 16px rgba(0,0,0,0.4);
+    background: linear-gradient(160deg, var(--phosphor), #35c98c);
+  }
+
+  .arena-die.fade-out {
+    animation: diceFadeOut 400ms ease forwards;
+  }
+  @keyframes diceFadeOut {
+    to { opacity: 0; transform: scale(0.4); }
+  }
+
+  /* ---------- Coin flip prompt ---------- */
+  .coin-stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 26px;
+    background: rgba(8, 9, 14, 0);
+    z-index: 25;
+    pointer-events: none;
+    animation: coinBackdropIn 320ms ease forwards;
+  }
+  @keyframes coinBackdropIn {
+    to { background: rgba(8, 9, 14, 0.6); }
+  }
+
+  .coin-prompt-label {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .coin {
+    width: 100px;
+    height: 100px;
+    perspective: 700px;
+  }
+
+  .coin-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateY(0deg);
+    transition: transform 1.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .coin-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 30px;
+    backface-visibility: hidden;
+    box-shadow: inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -8px 12px rgba(0,0,0,0.25);
+  }
+  .coin-face.front {
+    background: linear-gradient(160deg, var(--accent-bright), var(--accent));
+    color: #1a1206;
+  }
+  .coin-face.back {
+    background: linear-gradient(160deg, #d7dcec, #8a91ac);
+    color: #1a1206;
+    transform: rotateY(180deg);
+  }
+
+  .coin-choice {
+    display: flex;
+    gap: 14px;
+    pointer-events: auto;
+  }
+
+  .coin-choice button {
+    padding: 13px 26px;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    color: var(--text-primary);
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease, transform 120ms ease;
+  }
+  .coin-choice button:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent-bright);
+    transform: translateY(-1px);
+  }
+  .coin-choice button.picked {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #1a1206;
+  }
+  .coin-choice button:disabled { cursor: default; }
+
+  /* ---------- Second Wind success-chance spinner ---------- */
+  .spinner-stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(8, 9, 14, 0);
+    z-index: 22;
+    pointer-events: none;
+    animation: coinBackdropIn 260ms ease forwards;
+  }
+
+  .spinner-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .spinner-number {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 64px;
+    color: var(--accent-bright);
+    text-shadow: 0 0 18px rgba(255, 198, 92, 0.35);
+    min-width: 180px;
+    text-align: center;
+  }
+
+  .spinner-number.locked {
+    animation: spinnerLock 480ms ease;
+  }
+  @keyframes spinnerLock {
+    0% { transform: scale(1); text-shadow: 0 0 18px rgba(255, 198, 92, 0.35); }
+    35% { transform: scale(1.18); text-shadow: 0 0 34px rgba(255, 198, 92, 0.75); }
+    100% { transform: scale(1); text-shadow: 0 0 18px rgba(255, 198, 92, 0.35); }
+  }
+
+  /* ---------- Roll log panel ---------- */
+  .log-panel {
+    margin-top: 18px;
+    background: linear-gradient(180deg, var(--panel), #171a25);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 18px 22px;
+  }
+
+  .log-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .log-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 5px 0;
+    color: var(--text-primary);
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .log-row:first-of-type { border-top: none; }
+  .log-row span:first-child { color: var(--text-muted); letter-spacing: 0.04em; }
+  .log-row span:last-child { font-weight: 600; }
+  .log-row.hit-row span:last-child { color: var(--phosphor); }
+  .log-row.miss-row span:last-child { color: var(--rust); }
+
+  .reset-stats-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease;
+  }
+  .reset-stats-btn:hover {
+    border-color: var(--rust);
+    color: var(--rust);
+  }
+
+  /* ---------- Layout row: side panel + main console ---------- */
+  .layout {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 940px;
+  }
+
+  .side-panel {
+    width: 200px;
+    max-width: 100%;
+    flex: 0 1 200px;
+    background: linear-gradient(180deg, var(--panel), #171a25);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-top: 4px;
+  }
+
+  .side-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  .side-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    border-top: 1px solid rgba(255,255,255,0.04);
+  }
+  .side-row:first-of-type { border-top: none; }
+
+  .side-row .side-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .side-row .side-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent-bright);
+  }
+
+  .side-note {
+    margin-top: 12px;
+    font-family: var(--sans);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+
+  /* ---------- Decay speed panel (left of Second Wind Odds) ---------- */
+  .decay-panel {
+    width: 168px;
+    max-width: 100%;
+    flex: 0 1 168px;
+    background: linear-gradient(180deg, var(--panel), #171a25);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 18px 18px 20px;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .decay-btn {
+    width: 100%;
+    padding: 12px 10px;
+    margin-bottom: 8px;
+    border-radius: 9px;
+    border: 1px solid var(--panel-border);
+    background: rgba(255,255,255,0.02);
+    color: var(--text-primary);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 44px;
+    justify-content: center;
+    transition: border-color 150ms ease, background 150ms ease, transform 120ms ease;
+  }
+  .decay-btn:last-of-type { margin-bottom: 0; }
+  .decay-btn:hover { border-color: var(--accent); }
+  .decay-btn:active { transform: scale(0.98); }
+
+  .decay-btn .decay-sub {
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    text-transform: none;
+  }
+
+  .decay-btn[data-speed="slow"].active {
+    border-color: var(--phosphor);
+    background: rgba(99, 242, 176, 0.1);
+    color: var(--phosphor);
+  }
+  .decay-btn[data-speed="medium"].active {
+    border-color: var(--accent);
+    background: rgba(232, 163, 61, 0.12);
+    color: var(--accent-bright);
+  }
+  .decay-btn[data-speed="fast"].active {
+    border-color: var(--rust);
+    background: rgba(226, 96, 76, 0.12);
+    color: var(--rust);
+  }
+
+  .decay-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 14px 0 12px;
+  }
+
+  .reset-defaults-btn {
+    width: 100%;
+    padding: 12px 10px;
+    min-height: 44px;
+    border-radius: 9px;
+    border: 1px dashed var(--panel-border);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease;
+  }
+  .reset-defaults-btn:hover {
+    border-color: var(--rust);
+    color: var(--rust);
+  }
+  /* ---------- Mobile ---------- */
+  @media (max-width: 480px) {
+    body { padding: 20px 12px; }
+    .readout-value { font-size: 52px; }
+    .roll-btn { width: 124px; height: 124px; font-size: 17px; }
+    .console { padding: 26px 18px 22px; }
+    .spinner-number { font-size: 46px; min-width: 140px; }
+    .coin { width: 84px; height: 84px; }
+    .coin-face { font-size: 24px; }
+    .popup { font-size: 22px; }
+    .arena-die { width: 38px; height: 38px; font-size: 13px; }
+    .dice-tray { max-width: 120px; }
+    .die { width: 18px; height: 18px; }
+    .decay-panel, .side-panel { padding: 14px 14px 16px; }
+  }
+
+  @media (hover: none) {
+    /* Touch devices: skip hover-only affordances that never clear on tap */
+    .roll-btn:hover:not(:disabled) { transform: none; }
+    .decay-btn:hover { border-color: var(--panel-border); }
+    .decay-btn[data-speed="slow"].active:hover,
+    .decay-btn[data-speed="medium"].active:hover,
+    .decay-btn[data-speed="fast"].active:hover { border-color: inherit; }
+    .reset-stats-btn:hover, .reset-defaults-btn:hover, .coin-choice button:hover:not(:disabled) {
+      border-color: var(--panel-border);
+      color: var(--text-muted);
+    }
+  }
+</style>
+</head>
+<body>
+
+  <div class="dice-tray" id="diceTray"></div>
+
+  <div class="layout">
+    <div class="side-panel">
+      <div class="side-title">Second Wind Odds</div>
+      <div class="side-row">
+        <span class="side-label">Activation chance</span>
+        <span class="side-value" id="swActivationPct">100.0%</span>
+      </div>
+      <div class="side-row">
+        <span class="side-label">Success chance (last roll)</span>
+        <span class="side-value" id="swSuccessPct">—</span>
+      </div>
+      <div class="side-note">Activation chance is forecast for your next miss. Success chance is randomized fresh each time Second Wind activates, so it's shown after the fact, not predicted.</div>
+      <div class="log-title" style="margin-top: 16px;">Second Wind Log</div>
+      <div class="side-row">
+        <span class="side-label">Activated</span>
+        <span class="side-value" id="swActivatedCount">0</span>
+      </div>
+      <div class="side-row">
+        <span class="side-label">Hit</span>
+        <span class="side-value" id="swHitCount">0</span>
+      </div>
+      <div class="side-row">
+        <span class="side-label">Missed</span>
+        <span class="side-value" id="swMissCount">0</span>
+      </div>
+    </div>
+
+    <div class="stage">
+    <div class="console">
+      <div class="eyebrow">Second Wind · Roll Console</div>
+      <div class="status" id="statusText">&nbsp;</div>
+      <div class="readout">
+        <div class="readout-value" id="chanceValue">1%</div>
+        <div class="readout-label">Chance to hit</div>
+      </div>
+      <button class="roll-btn" id="rollBtn">ROLL</button>
+      <div class="stats" id="statsLine">Dice pool: 0 &nbsp;·&nbsp; Second Wind activations: 0</div>
+    </div>
+
+    <div class="log-panel">
+      <div class="log-title">Roll Log</div>
+      <div class="log-row"><span>Total rolls</span><span id="statTotal">0</span></div>
+      <div class="log-row hit-row"><span>Hits</span><span id="statHits">0</span></div>
+      <div class="log-row miss-row"><span>Misses</span><span id="statMisses">0</span></div>
+      <div class="log-row"><span>Hit rate</span><span id="statHitPct">0.0%</span></div>
+      <div class="log-row"><span>Miss rate</span><span id="statMissPct">0.0%</span></div>
+      <button class="reset-stats-btn" id="resetStatsBtn">Reset count</button>
+    </div>
+  </div>
+
+    <div class="decay-panel">
+      <button class="decay-btn" data-speed="slow" id="decaySlowBtn">
+        Slow
+        <span class="decay-sub">barely notice it</span>
+      </button>
+      <button class="decay-btn active" data-speed="medium" id="decayMediumBtn">
+        Medium
+        <span class="decay-sub">reliable, not forever</span>
+      </button>
+      <button class="decay-btn" data-speed="fast" id="decayFastBtn">
+        Fast
+        <span class="decay-sub">strong then burns out</span>
+      </button>
+      <div class="decay-divider"></div>
+      <button class="reset-defaults-btn" id="resetDefaultsBtn">Reset to defaults</button>
+    </div>
+  </div>
+
+  <div class="popup" id="popup">Second Wind</div>
+  <div class="dice-arena" id="diceArena"></div>
+
+<script>
+  // ---------- Decay speed presets ----------
+  // chance(n) = 100 * r^n, where r is the decay rate. Higher r = slower
+  // decay (Second Wind stays reliable longer); lower r = faster decay.
+  const DECAY_PRESETS = { slow: 0.99, medium: 0.97, fast: 0.93 };
+  const DEFAULT_SPEED = 'medium';
+
+  // ---------- Second Wind system (ported from legendary_drop_system.py) ----------
+  class SecondWindSystem {
+    constructor({ mainChance = 1.0, decayRate = DECAY_PRESETS[DEFAULT_SPEED] } = {}) {
+      this.startChance = mainChance;
+      this.mainChance = mainChance;
+      this.diceCount = 0;
+      this.secondWindActivations = 0;
+      this.decayRate = decayRate;
+    }
+
+    // Diminishing returns: 100% chance at 0 prior activations, decaying
+    // exponentially at rate `decayRate` per activation. Slow/Medium/Fast
+    // presets just swap this constant — same formula, different feel.
+    activationChance() {
+      const n = this.secondWindActivations;
+      const chance = 100 * Math.pow(this.decayRate, n);
+      return Math.max(0, Math.min(100, chance));
+    }
+
+    reset() {
+      this.mainChance = this.startChance;
+      this.secondWindActivations = 0;
+      this.diceCount = 0;
+    }
+  }
+
+  const system = new SecondWindSystem({ mainChance: 1.0 });
+  const rollStats = { total: 0, hits: 0, misses: 0 };
+  const swStats = { activated: 0, hits: 0, misses: 0 };
+  let lastSuccessChance = null; // most recent random success-chance draw
+  let currentSpeed = DEFAULT_SPEED;
+
+  // ---------- DOM refs ----------
+  const rollBtn = document.getElementById('rollBtn');
+  const statusText = document.getElementById('statusText');
+  const chanceValue = document.getElementById('chanceValue');
+  const statsLine = document.getElementById('statsLine');
+  const diceTray = document.getElementById('diceTray');
+  const popup = document.getElementById('popup');
+  const diceArena = document.getElementById('diceArena');
+  const statTotal = document.getElementById('statTotal');
+  const statHits = document.getElementById('statHits');
+  const statMisses = document.getElementById('statMisses');
+  const statHitPct = document.getElementById('statHitPct');
+  const statMissPct = document.getElementById('statMissPct');
+  const resetStatsBtn = document.getElementById('resetStatsBtn');
+  const swActivationPct = document.getElementById('swActivationPct');
+  const swSuccessPct = document.getElementById('swSuccessPct');
+  const swActivatedCount = document.getElementById('swActivatedCount');
+  const swHitCount = document.getElementById('swHitCount');
+  const swMissCount = document.getElementById('swMissCount');
+  const decaySlowBtn = document.getElementById('decaySlowBtn');
+  const decayMediumBtn = document.getElementById('decayMediumBtn');
+  const decayFastBtn = document.getElementById('decayFastBtn');
+  const resetDefaultsBtn = document.getElementById('resetDefaultsBtn');
+
+  function updateSideOdds() {
+    // Activation chance is forecastable in advance (it only depends on how
+    // many activations have happened so far), so this always shows the odds
+    // that would apply on the NEXT miss.
+    swActivationPct.textContent = `${system.activationChance().toFixed(1)}%`;
+
+    // Success chance, by contrast, is a fresh random draw every time Second
+    // Wind activates — there's nothing to forecast, so this shows the most
+    // recent draw rather than a prediction. Blank until the first activation.
+    swSuccessPct.textContent = lastSuccessChance === null ? '\u2014' : `${lastSuccessChance}%`;
+
+    swActivatedCount.textContent = swStats.activated;
+    swHitCount.textContent = swStats.hits;
+    swMissCount.textContent = swStats.misses;
+  }
+
+  function updateStatsPanel() {
+    const { total, hits, misses } = rollStats;
+    statTotal.textContent = total;
+    statHits.textContent = hits;
+    statMisses.textContent = misses;
+    statHitPct.textContent = total === 0 ? '0.0%' : `${(100 * hits / total).toFixed(1)}%`;
+    statMissPct.textContent = total === 0 ? '0.0%' : `${(100 * misses / total).toFixed(1)}%`;
+  }
+
+  // Tracks the outcome of each MAIN roll (not Second Wind/dice sub-rolls —
+  // those are already reflected in whether the player needed a rescue at
+  // all). This counter is independent of system.reset(): it's a lifetime
+  // log across the whole session, only cleared by the Reset count button.
+  function recordRoll(isHit) {
+    rollStats.total += 1;
+    if (isHit) rollStats.hits += 1;
+    else rollStats.misses += 1;
+    updateStatsPanel();
+  }
+
+  resetStatsBtn.addEventListener('click', () => {
+    rollStats.total = 0;
+    rollStats.hits = 0;
+    rollStats.misses = 0;
+    updateStatsPanel();
+  });
+
+  function setActiveDecayButton(speed) {
+    [decaySlowBtn, decayMediumBtn, decayFastBtn].forEach((btn) => btn.classList.remove('active'));
+    ({ slow: decaySlowBtn, medium: decayMediumBtn, fast: decayFastBtn })[speed].classList.add('active');
+  }
+
+  // Changing decay speed (or hitting Reset to defaults) restarts the whole
+  // game: current chase state AND both session logs, since stats collected
+  // under one decay rate aren't meaningful mixed with another rate's stats.
+  function fullReset(speed) {
+    currentSpeed = speed;
+    system.decayRate = DECAY_PRESETS[speed];
+    system.reset();
+    rollStats.total = 0;
+    rollStats.hits = 0;
+    rollStats.misses = 0;
+    swStats.activated = 0;
+    swStats.hits = 0;
+    swStats.misses = 0;
+    lastSuccessChance = null;
+    syncTrayCount();
+    updateReadout();
+    updateStatsPanel();
+    updateSideOdds();
+    setActiveDecayButton(speed);
+    setStatus('\u00A0');
+  }
+
+  decaySlowBtn.addEventListener('click', () => { if (!rollBtn.disabled) fullReset('slow'); });
+  decayMediumBtn.addEventListener('click', () => { if (!rollBtn.disabled) fullReset('medium'); });
+  decayFastBtn.addEventListener('click', () => { if (!rollBtn.disabled) fullReset('fast'); });
+  resetDefaultsBtn.addEventListener('click', () => { if (!rollBtn.disabled) fullReset(DEFAULT_SPEED); });
+
+  const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+
+  function updateReadout(bump = false) {
+    chanceValue.textContent = `${system.mainChance.toFixed(0)}%`;
+    if (bump) {
+      chanceValue.classList.remove('bump');
+      void chanceValue.offsetWidth;
+      chanceValue.classList.add('bump');
+    }
+    statsLine.textContent = `Dice pool: ${system.diceCount} · Second Wind activations: ${system.secondWindActivations}`;
+  }
+
+  function setStatus(text, kind) {
+    statusText.textContent = text;
+    statusText.classList.remove('miss', 'hit');
+    if (kind) statusText.classList.add(kind);
+  }
+
+  function addDieToTray() {
+    const die = document.createElement('div');
+    die.className = 'die pop-in';
+    diceTray.appendChild(die);
+  }
+
+  function syncTrayCount() {
+    diceTray.innerHTML = '';
+    for (let i = 0; i < system.diceCount; i++) {
+      const die = document.createElement('div');
+      die.className = 'die';
+      diceTray.appendChild(die);
+    }
+  }
+
+  async function showPopup(text) {
+    popup.textContent = text;
+    popup.classList.remove('show');
+    void popup.offsetWidth;
+    popup.classList.add('show');
+    await delay(900);
+  }
+
+  function lightUpButton() {
+    rollBtn.disabled = false;
+    rollBtn.classList.remove('ready-glow');
+    void rollBtn.offsetWidth;
+    rollBtn.classList.add('ready-glow');
+  }
+
+  async function animateDiceRoll(results) {
+    diceArena.innerHTML = '';
+    const els = results.map((value) => {
+      const el = document.createElement('div');
+      el.className = 'arena-die rolling';
+      const face = document.createElement('span');
+      face.className = 'face';
+      face.textContent = value;
+      el.appendChild(face);
+      diceArena.appendChild(el);
+      return { el, face, value };
+    });
+
+    // wait for fly-in + spin to finish, then reveal faces
+    await delay(420 + 700);
+    els.forEach(({ el, face, value }) => {
+      el.classList.add('settled');
+      face.style.opacity = '1';
+      if (value === 10) el.classList.add('hit-ten');
+    });
+
+    await delay(950);
+
+    els.forEach(({ el }) => el.classList.add('fade-out'));
+    await delay(420);
+    diceArena.innerHTML = '';
+  }
+
+  function rollDice(count) {
+    const results = [];
+    for (let i = 0; i < count; i++) {
+      results.push(Math.floor(Math.random() * 10) + 1);
+    }
+    return results;
+  }
+
+  // Prompts the player to call heads or tails, then flips independently of
+  // that call (illusion of agency — the guess never influences the coin).
+  // Resolves to true for heads, false for tails.
+  // Spins rapidly through random numbers, decelerating, then locks on
+  // finalValue. finalValue IS the real success-chance draw used for the
+  // actual roll — this is a reveal of the real number, not a separate
+  // cosmetic animation with a different result underneath.
+  function animateNumberSpinner(finalValue) {
+    return new Promise((resolve) => {
+      const stage = document.createElement('div');
+      stage.className = 'spinner-stage';
+
+      const label = document.createElement('div');
+      label.className = 'spinner-label';
+      label.textContent = 'Second Wind Chance';
+
+      const numberEl = document.createElement('div');
+      numberEl.className = 'spinner-number';
+      numberEl.textContent = '0%';
+
+      stage.appendChild(label);
+      stage.appendChild(numberEl);
+      document.body.appendChild(stage);
+
+      // Increasing delays between ticks = deceleration, like a slot reel
+      // settling. Every tick but the last shows a random decoy number.
+      const delays = [35, 40, 45, 55, 65, 80, 95, 115, 140, 170, 205, 245, 290];
+      let i = 0;
+
+      function tick() {
+        if (i < delays.length - 1) {
+          numberEl.textContent = `${Math.floor(Math.random() * 101)}%`;
+          i++;
+          setTimeout(tick, delays[i]);
+        } else {
+          numberEl.textContent = `${finalValue}%`;
+          numberEl.classList.add('locked');
+          setTimeout(() => {
+            document.body.removeChild(stage);
+            resolve();
+          }, 650);
+        }
+      }
+      tick();
+    });
+  }
+
+  function promptCoinFlip() {
+    return new Promise((resolveOuter) => {
+      const stage = document.createElement('div');
+      stage.className = 'coin-stage';
+
+      const label = document.createElement('div');
+      label.className = 'coin-prompt-label';
+      label.textContent = 'Call it';
+      stage.appendChild(label);
+
+      const coin = document.createElement('div');
+      coin.className = 'coin';
+      const inner = document.createElement('div');
+      inner.className = 'coin-inner';
+      const front = document.createElement('div');
+      front.className = 'coin-face front';
+      front.textContent = 'H';
+      const back = document.createElement('div');
+      back.className = 'coin-face back';
+      back.textContent = 'T';
+      inner.appendChild(front);
+      inner.appendChild(back);
+      coin.appendChild(inner);
+      stage.appendChild(coin);
+
+      const choiceRow = document.createElement('div');
+      choiceRow.className = 'coin-choice';
+      const headsBtn = document.createElement('button');
+      headsBtn.textContent = 'Heads';
+      const tailsBtn = document.createElement('button');
+      tailsBtn.textContent = 'Tails';
+      choiceRow.appendChild(headsBtn);
+      choiceRow.appendChild(tailsBtn);
+      stage.appendChild(choiceRow);
+
+      document.body.appendChild(stage);
+
+      async function handlePick(guess) {
+        headsBtn.disabled = true;
+        tailsBtn.disabled = true;
+        (guess === 'heads' ? headsBtn : tailsBtn).classList.add('picked');
+        choiceRow.style.opacity = '0.45';
+        label.textContent = 'Flipping\u2026';
+
+        await delay(180);
+        const isHeads = Math.random() < 0.5;      // independent of guess
+        const fullSpins = 4;
+        const landDeg = fullSpins * 360 + (isHeads ? 0 : 180);
+        inner.style.transform = `rotateY(${landDeg}deg)`;
+
+        await delay(1200);
+        const matched = (guess === 'heads') === isHeads;
+        label.textContent = matched ? 'You called it!' : 'Better luck next time';
+        await delay(750);
+        if (isHeads) {
+          label.textContent = 'Heads \u2014 chance holds';
+        } else if (system.mainChance <= 0) {
+          label.textContent = 'Tails \u2014 already at the floor';
+        } else {
+          label.textContent = 'Tails \u2014 chance dips';
+        }
+        await delay(850);
+
+        document.body.removeChild(stage);
+        resolveOuter(isHeads);
+      }
+
+      headsBtn.addEventListener('click', () => handlePick('heads'));
+      tailsBtn.addEventListener('click', () => handlePick('tails'));
+    });
+  }
+
+  // ---------- Main roll sequence ----------
+  async function doRoll() {
+    rollBtn.disabled = true;
+    rollBtn.classList.remove('ready-glow');
+    setStatus('\u00A0');
+
+    // The whole probability chain (main roll -> Second Wind -> dice ->
+    // coin) runs inside this try block. The finally clause is the single
+    // place the button ever re-enables, so it's impossible for the roll
+    // button to come back active before every step has actually resolved
+    // — and it still re-enables even if something above throws.
+    try {
+      // --- Main Roll ---
+      const mainRoll = Math.random() * 100;
+      const isMainHit = mainRoll <= system.mainChance;
+      recordRoll(isMainHit);
+
+      if (isMainHit) {
+        setStatus('Hit!', 'hit');
+        await delay(1000);
+        system.reset();
+        syncTrayCount();
+        updateReadout(true);
+        setStatus('\u00A0');
+        return;
+      }
+
+      setStatus('Miss', 'miss');
+      await delay(500);
+
+      // --- Second Wind Activation (calculated silently) ---
+      const activationChance = system.activationChance();
+      const activationRoll = Math.random() * 100;
+      if (activationRoll > activationChance) {
+        // fails to activate — nothing visible happens
+        await delay(300);
+        return;
+      }
+      system.secondWindActivations++;
+      swStats.activated++;
+
+      // --- Popup: Second Wind! ---
+      await showPopup('Second Wind');
+
+      // --- Second Wind Success ---
+      // The success chance is NOT tracked/escalated — it's a fresh random
+      // draw (0-100 inclusive) every single time Second Wind activates.
+      // The spinner reveals that exact number to the player, then the
+      // same value is used for the actual roll below.
+      const successChance = Math.floor(Math.random() * 101);
+      await animateNumberSpinner(successChance);
+      lastSuccessChance = successChance;
+      updateSideOdds();
+
+      const successRoll = Math.random() * 100;
+      if (successRoll > successChance) {
+        swStats.misses++;
+        updateSideOdds();
+        setStatus('Second Wind missed', 'miss');
+        await delay(700);
+        setStatus('\u00A0');
+        return;
+      }
+      swStats.hits++;
+      updateSideOdds();
+
+      // --- Success: add a die, then resolve the whole pool ---
+      system.diceCount += 1;
+      addDieToTray();
+      await delay(650);
+
+      const results = rollDice(system.diceCount);
+      await animateDiceRoll(results);
+
+      const anyTen = results.includes(10);
+      if (anyTen) {
+        system.mainChance = Math.min(100, system.mainChance + 1);
+      } else {
+        const isHeads = await promptCoinFlip();
+        if (!isHeads) system.mainChance = Math.max(0, system.mainChance - 1);
+        // heads: no change
+      }
+
+      syncTrayCount();
+      updateReadout(true);
+      setStatus('\u00A0');
+    } finally {
+      updateSideOdds();
+      lightUpButton();
+    }
+  }
+
+  rollBtn.addEventListener('click', () => {
+    if (rollBtn.disabled) return;
+    doRoll();
+  });
+
+  updateReadout();
+  updateSideOdds();
+
+  // Registering the service worker only works when served over http(s)
+  // (not when opened directly via file://), and only in browsers that
+  // support it — so this is best-effort and silently does nothing if
+  // either condition isn't met. It's what makes "Install" / "Add to
+  // Home Screen" available and lets the page work offline once installed.
+  if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {
+        // Ignore — app still works fine as a plain page without it.
+      });
+    });
+  }
+</script>
+</body>
+</html>
